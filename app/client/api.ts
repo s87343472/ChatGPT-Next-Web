@@ -118,7 +118,7 @@ export class ClientApi {
         this.llm = new QwenApi();
         break;
       default:
-        this.llm = new ChatGPTApi();
+        this.llm = new CustomApi(); // 使用自定义API
     }
   }
 
@@ -265,5 +265,42 @@ export function getClientApi(provider: ServiceProvider): ClientApi {
       return new ClientApi(ModelProvider.Qwen);
     default:
       return new ClientApi(ModelProvider.GPT);
+  }
+}
+
+// 自定义API类
+class CustomApi extends LLMApi {
+  async chat(options: ChatOptions): Promise<void> {
+    const requestBody = {
+      model: options.config.model,
+      messages: options.messages,
+      temperature: options.config.temperature,
+      top_p: options.config.top_p,
+      stream: options.config.stream,
+      presence_penalty: options.config.presence_penalty,
+      frequency_penalty: options.config.frequency_penalty,
+    };
+
+    const response = await fetch("https://api.deepbricks.ai/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${useAccessStore.getState().apiKey}`,
+      },
+      body: JSON.stringify(requestBody),
+    });
+
+    const data = await response.json();
+    options.onFinish(data.choices[0].message.content);
+  }
+
+  async usage(): Promise<LLMUsage> {
+    // Implement usage method if needed
+    return { used: 0, total: 0 };
+  }
+
+  async models(): Promise<LLMModel[]> {
+    // Implement models method if needed
+    return [];
   }
 }
